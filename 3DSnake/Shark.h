@@ -1,0 +1,72 @@
+#ifndef __Shark__
+#define __Shark__
+
+
+#include "SnakeApplication.h"
+#include "Children.h"
+
+class Children;
+class SnakeApplication;
+
+class Shark
+{
+  private:
+    float vitesse;
+    bool out;
+    bool rotating;
+    Ogre::Real rotationFactor, rotationProgress;
+    
+    Ogre::Vector3 startingRotationDirection;
+    Ogre::Vector3 currentRotationDirection;
+    Ogre::Vector3 finalRotationDirection;
+    
+    Ogre::Vector3 position, direction;
+    Ogre::Degree yaw, pitch, roll, virage;
+    Ogre::Degree yawFactor, pitchFactor, rollFactor;
+    Ogre::Entity *sharkEntity;
+    Ogre::SceneNode *sharkNode, *sharkEntityNode;
+    Ogre::AnimationState *animationState, *eatAnimationState;
+    
+    SnakeApplication *snakeApp;
+    Children *children;
+
+    Ogre::Vector3 nextPosition;
+    Ogre::Vector3 nextDirection;
+    Ogre::Quaternion rotationSource, rotationDirection;
+    
+    Ogre::Vector3 vectFront, vectLeft, vectUp;
+    unsigned int commandeDirectionnelle;/*0 = Gauche; 1=Droite; 2=Haut; 3=Bas */
+    
+  public:
+    Shark(Ogre::SceneManager *sceneMgr, SnakeApplication*);
+    ~Shark();
+  
+    Ogre::Vector3 getPosition();
+    Ogre::SceneNode* getNode();
+    void move(Ogre::Vector3, Ogre::Real, Ogre::Real, Ogre::Real, Ogre::Real, Ogre::Node::TransformSpace );
+    void move(Ogre::Real, Ogre::Node::TransformSpace);
+    void setDirection(Ogre::Vector3);
+    void setDirection(void);
+
+    void left();
+    void right();
+    void up();
+    void down();
+    void updateRotationVectors ();
+    
+    void turningLeft();
+    void turningRight();
+    void turningUp();
+    void turningDown();
+    
+    Ogre::Vector3 getRealPos(Ogre::Vector3 vect);
+    void anim(Ogre::Real);
+    void eatAnim(Ogre::Real);
+    
+    void spin();
+    bool redirection();
+    
+    void add();
+};
+
+#endif

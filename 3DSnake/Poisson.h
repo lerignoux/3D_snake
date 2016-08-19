@@ -1,0 +1,29 @@
+#ifndef __Poisson__
+#define __Poisson__
+
+#include "BaseApplication.h"
+
+class Poisson
+{
+  private:
+    static unsigned int indice;
+    float vitesse;
+    Ogre::Vector3 position, direction;
+    Ogre::Degree yaw, pitch, roll;
+    Ogre::Degree yawFactor, pitchFactor, rollFactor;
+    Ogre::Entity *poissonEntity;
+    Ogre::SceneNode *poissonNode;
+    
+    Ogre::AnimationState *animationState;
+    
+  public:
+    Poisson(Ogre::SceneManager *sceneMgr, int);
+    ~Poisson();
+  
+    Ogre::Vector3 getPosition();
+    void move();
+    
+    void anim(Ogre::Real);
+};
+
+#endif

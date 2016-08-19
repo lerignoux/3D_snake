@@ -1,0 +1,63 @@
+#ifndef __GodRays__
+#define __GodRays__
+
+
+// ----------------------------------------------------------------------------
+// Light shafts demo variables
+// ----------------------------------------------------------------------------
+
+#define _def_NumberOfRays 125
+#define _def_Simulation_Speed 3
+
+#include "BaseApplication.h"
+#include "LightDepthMapRttListener.h"
+
+class GodRays
+{
+  private:
+    // God ray data struct
+    struct GodRayData
+    {
+	    GodRayData()
+	    {
+	    }
+
+	    // Arrays information:
+	    // [0] -> Current value
+	    // [1] -> Final value
+	    // [2] -> Step value
+	    // [3] -> Final-Current value
+	    // [4] -> Step addition
+	    Ogre::Radian MainAngle[5];
+	    float Radius[5];
+	    Ogre::Radian RotateAngle[5];
+
+	    float Dimension;
+
+    } GDData[_def_NumberOfRays];
+    
+    Ogre::SceneManager *mSceneMgr;
+    /// Our manual object to create the god rays
+    Ogre::ManualObject* mManualGodRays;
+    /// Camera used for rendering the shadow map and as light frustum
+    Ogre::Camera       *mLightCamera;
+    /// Light camera scene node
+    Ogre::SceneNode    *mLightCameraSN;
+    Ogre::SceneNode *raySceneNode;
+    
+  public:
+    GodRays(Ogre::SceneManager *sceneMgr, Ogre::Camera*, Ogre::SceneNode*, int num);
+    ~GodRays(void);
+    
+    Ogre::Vector4 calculateRayPosition(const GodRayData&);
+    void updateRays(const float&, const float&, const int&, float);
+    bool createGodRays(Ogre::SceneManager *, Ogre::SceneNode*, Ogre::Camera *, const int&, const float&);
+    void createLightCameraRTT();
+    
+    void yaw(Ogre::Degree);
+    void pitch(Ogre::Degree);
+    void roll(Ogre::Degree);
+    void move(Ogre::Vector3);
+};
+
+#endif

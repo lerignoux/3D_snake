@@ -1,0 +1,198 @@
+#include "SnakeFrameListener.h"
+
+using namespace std;
+using namespace Ogre;
+
+    SnakeFrameListener::SnakeFrameListener(RenderWindow* win, Camera* cam, SceneManager *sceneMgr, Shark* shark, Poisson* poisson):BaseFrameListener(win, cam, true, true), shark(shark),poisson(poisson)
+    {
+      cout << " Setting Up SnakeFrameListener " << endl;
+      
+      mSceneMgr = sceneMgr;
+      mNode = mSceneMgr->getRootSceneNode();
+      mCamNode = mSceneMgr->getSceneNode("mCamNode");
+      
+      mRotate=0.30;
+      mMove = 500;
+      
+      mContinue = true;
+      
+      mMouse->setEventCallback(this);
+      mKeyboard->setEventCallback(this);
+
+      mYaw = Degree(0);
+      mPitch = Degree(0);
+      mRoll = Degree(0);
+
+      mWalkSpeed = 50.0f;
+      mDirection = Vector3::ZERO;
+      mDirection.z = -mMove;;
+      
+      mRMouseDown = false;
+      mLMouseDown = false;
+
+	cout << "****************************** SnakeFrameListener inizialised ****************************" << endl;
+    }
+    
+    SnakeFrameListener::~SnakeFrameListener()
+    {
+    }
+    
+    bool SnakeFrameListener::nextLocation()
+    {
+      return true;
+    }
+    
+
+    bool SnakeFrameListener::frameStarted(const FrameEvent &evt)
+    {
+      cout << "****************************** Frame Started ****************************" << endl;
+      if (mMouse) mMouse->capture();
+      if (mKeyboard) mKeyboard->capture();
+
+      cout << "Déplacement du requin." << evt.timeSinceLastFrame << endl;
+      
+      shark->move(mDirection*evt.timeSinceLastFrame, mYaw, mPitch, mRoll, Node::TS_LOCAL);
+      
+      cout << "Animation du requin." << endl;
+      
+      shark->anim(evt.timeSinceLastFrame);
+
+      if (shark->getPosition().distance(poisson->getPosition())<150) 
+      {
+	shark->add();
+		poisson->move();
+      }
+      cout << " ****************************** Frame Ended ****************************" << endl;
+      return mContinue;
+      
+    }
+    
+    bool SnakeFrameListener::mouseMoved(const OIS::MouseEvent &e)
+    {
+        mCamNode->yaw(Degree(-mRotate * e.state.X.rel), Node::TS_WORLD);
+        mCamNode->pitch(Degree(-mRotate * e.state.Y.rel), Node::TS_LOCAL);
+	mCamNode->translate(mCamera->getDirection()*e.state.Z.rel, Node::TS_LOCAL);
+        return true;
+    }
+    
+    bool SnakeFrameListener::mousePressed(const OIS::MouseEvent &e, OIS::MouseButtonID id)
+    {
+        switch (id)
+        {
+	  case OIS::MB_Left:
+	    shark->spin();
+            break;
+	    
+	case OIS::MB_Right:
+	{
+	  mNode->setDirection(Vector3(0,0,0));
+	}
+            break;
+	    
+        default:
+            break;
+        }
+        return true;
+    }
+    
+    
+    
+    bool SnakeFrameListener::mouseReleased(const OIS::MouseEvent &e, OIS::MouseButtonID id)
+    {
+      switch (id)
+        {
+	  case OIS::MB_Right:
+            mRMouseDown = false;
+            break;
+	    
+	  default:
+            break;
+	}
+      return true;
+    }
+    
+        bool SnakeFrameListener::keyPressed(const OIS::KeyEvent &e)
+    {
+        switch (e.key)
+        {
+        case OIS::KC_ESCAPE: 
+            mContinue = false;
+            break;
+	    
+	case OIS::KC_1:
+            mCamera->getParentSceneNode()->detachObject(mCamera);
+            mCamNode = mSceneMgr->getSceneNode("mCamNode");
+            mCamNode->attachObject(mCamera);
+            break;
+
+        case OIS::KC_2:
+            break;
+	    
+	case OIS::KC_UP:
+        case OIS::KC_Z:
+	    mPitch = - mRotate;
+            break;
+ 
+        case OIS::KC_DOWN:
+        case OIS::KC_S:
+	    mPitch = + mRotate;
+            break;
+ 
+        case OIS::KC_LEFT:
+        case OIS::KC_Q:
+	    mYaw = + mRotate;
+            break;
+	    
+	case OIS::KC_RIGHT:
+	case OIS::KC_D:
+	  mYaw = - mRotate;
+	  break;
+	    
+        default:
+            break;
+        }
+        return mContinue;
+    }
+    
+    bool SnakeFrameListener::keyReleased(const OIS::KeyEvent &e)
+    {
+              switch (e.key)
+        {
+        case OIS::KC_UP:
+        case OIS::KC_Z:
+	     mPitch = Degree(0);
+            break;
+ 
+        case OIS::KC_DOWN:
+        case OIS::KC_S:
+	    mPitch = Degree(0);
+            break;
+ 
+        case OIS::KC_LEFT:
+        case OIS::KC_Q:
+	    mYaw = Degree(0);
+	    break;
+ 
+        case OIS::KC_RIGHT:
+        case OIS::KC_D:
+	    mYaw = Degree(0);
+            break;
+ 
+        case OIS::KC_PGDOWN:
+        case OIS::KC_E:
+            mDirection.y = 0;
+            break;
+ 
+        case OIS::KC_PGUP:
+        case OIS::KC_A:
+            mDirection.y = 0;
+            break;
+ 
+        default:
+            break;
+        }
+
+      return true;
+    }
+    
+    

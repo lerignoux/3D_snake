@@ -1,0 +1,439 @@
+/*
+-----------------------------------------------------------------------------
+Filename:    SnakeApplication.cpp
+-----------------------------------------------------------------------------
+ 
+This source file is part of the
+   ___                 __    __ _ _    _ 
+  /___\__ _ _ __ ___  / / /\ \ (_) | _(_)
+ //  // _` | '__/ _ \ \ \/  \/ / | |/ / |
+/ \_// (_| | | |  __/  \  /\  /| |   <| |
+\___/ \__, |_|  \___|   \/  \/ |_|_|\_\_|
+      |___/                              
+	  Snake Framework
+	  http://www.ogre3d.org/tikiwiki/
+-----------------------------------------------------------------------------
+*/
+ 
+#include "SnakeApplication.h"
+ 
+ using namespace Ogre;
+ using namespace std;
+ 
+//-------------------------------------------------------------------------------------
+SnakeApplication::SnakeApplication(void):BaseApplication()
+{
+  #define NB_POISSONS 9
+  #define NB_FLORA 80
+  
+    mMouseDown = false;     // If a mouse button is depressed
+    mToggle = 0.0;    // The time left until next toggle
+    mRotate = 0.13;   // The rotate constant
+    mMove = 50;      // The movement constant
+  
+    mYaw = 0;
+    mPitch = 0;
+    mRoll = 0;
+    
+    mDirection = Vector3::ZERO;
+    mDirection.z = -mMove;
+    
+    next_arg= OIS::void;
+    
+    poissons = new Poisson*[NB_POISSONS];
+    flora = new Flora*[NB_FLORA];
+    
+    srand ( time(NULL) );
+}
+//-------------------------------------------------------------------------------------
+SnakeApplication::~SnakeApplication(void)
+{
+  // We created the query, and we are also responsible for deleting it.
+  mSceneMgr->destroyQuery(mRaySceneQuery);
+}
+ 
+//-------------------------------------------------------------------------------------
+void SnakeApplication::createScene(void)
+{
+// create your scene here :)
+  mSceneMgr->setAmbientLight(Ogre::ColourValue(0, 0, 0.01));
+//   mSceneMgr->setShadowTechnique(Ogre::SHADOWTYPE_STENCIL_ADDITIVE);   
+//    mSceneMgr->setShadowTechnique(SHADOWTYPE_STENCIL_MODULATIVE);
+     
+      
+  ColourValue fadeColour(0.1, 0.1, 0.19);
+  mWindow->getViewport(0)->setBackgroundColour(fadeColour);
+  mSceneMgr->setFog(Ogre::FOG_LINEAR, fadeColour, 0.0, 1000, 2500);
+  
+  sky = mSceneMgr->createLight("SkyRay");
+  sky->setType(Light::LT_DIRECTIONAL);
+  sky->setDirection(Vector3(0.55,-0.3,0.75));
+  sky->setDiffuseColour(ColourValue(1,1,1.4));
+  sky->setSpecularColour(ColourValue(1,1,1.4));
+//   sky->setAttenuation(1000,0.5,0.1,1);
+   
+   
+    // Set up light 0
+    mLight0 = mSceneMgr->createLight("Light0");
+    mLight0->setType(Light::LT_POINT);
+    mLight0->setPosition(1500,0,1500);
+    mLight0->setDiffuseColour(0.9, 0.9, 0.9);
+    mLight0->setSpecularColour(1, 1, 1);
+   
+   
+  plane.d = 1500;
+  plane.normal = Ogre::Vector3::NEGATIVE_UNIT_Y;
+  mSceneMgr->setSkyPlane(true, plane, "SubWater", 5000, 500/*, true, 1.5f, 150, 150*/);
+
+  // création du requin
+  shark = new Shark(mSceneMgr,this);
+  
+  // mise en place de la caméra
+  setCameraNode(shark->getNode());
+    
+  Ogre::MaterialManager::getSingleton().setDefaultTextureFiltering(Ogre::TFO_ANISOTROPIC);
+  Ogre::MaterialManager::getSingleton().setDefaultAnisotropy(7);
+  
+  mTerrainGlobals = OGRE_NEW Ogre::TerrainGlobalOptions();
+  
+  mTerrainGroup = OGRE_NEW Ogre::TerrainGroup(mSceneMgr, Ogre::Terrain::ALIGN_X_Z, 513, 4000.0f);
+    mTerrainGroup->setFilenameConvention(Ogre::String("Snake3DTerrain"), Ogre::String("dat"));
+//     mTerrainGroup->setOrigin(Ogre::Vector3::ZERO);
+    mTerrainGroup->setOrigin(Ogre::Vector3(1500,0,1500));
+    
+    configureTerrainDefaults(sky);
+    configureTerrainDefaults(mLight0);
+    
+    for (long x = 0; x <= 0; ++x)
+        for (long y = 0; y <= 0; ++y)
+            defineTerrain(x, y);
+ 
+    // sync load since we want everything in place when we start
+    mTerrainGroup->loadAllTerrains(true);
+    
+    if (mTerrainsImported)
+    {
+        Ogre::TerrainGroup::TerrainIterator ti = mTerrainGroup->getTerrainIterator();
+        while(ti.hasMoreElements())
+        {
+            Ogre::Terrain* t = ti.getNext()->instance;
+            initBlendMaps(t);
+        }
+    }
+    
+    mTerrainGroup->freeTemporaryResources();
+
+    //////////////////////////////// God rays stuff ///////////////////////
+
+//     godRays = new GodRays*[4];
+//     // Create god rays
+//     godRays[0] = new GodRays(mSceneMgr, mCamera, camNode, 0);
+//     godRays[1] = new GodRays(mSceneMgr, mCamera, camNode, 1);
+//     godRays[2] = new GodRays(mSceneMgr, mCamera, camNode, 2);
+//     godRays[3] = new GodRays(mSceneMgr, mCamera, camNode, 3);
+//     godRays[0]->createGodRays(mSceneMgr, mLightCameraSN, mLightCamera, _def_NumberOfRays, 0.45f);
+//     godRays[0]->pitch(Degree(-90));
+//     godRays[0]->move(Vector3(1000,1000,1000));
+//     godRays[1]->createGodRays(mSceneMgr, mLightCameraSN, mLightCamera, _def_NumberOfRays, 0.45f);
+//     godRays[1]->pitch(Degree(-90));
+//     godRays[0]->move(Vector3(2000,1000,1000));
+//     godRays[2]->createGodRays(mSceneMgr, mLightCameraSN, mLightCamera, _def_NumberOfRays, 0.45f);
+//     godRays[2]->pitch(Degree(-90));
+//     godRays[0]->move(Vector3(2000,1000,2000));
+//     godRays[3]->createGodRays(mSceneMgr, mLightCameraSN, mLightCamera, _def_NumberOfRays, 0.45f);
+//     godRays[3]->pitch(Degree(-90));
+//     godRays[0]->move(Vector3(1000,1000,2000));
+    // Create a RRT for depth/shadow map
+//      godRays->createLightCameraRTT();
+
+
+    //////////////////////////////// God rays stuff //////////////////////////
+    
+  // Création des nodes d'objets.
+  for (unsigned int ii =0; ii < NB_POISSONS; ii++)
+  {
+    poissons[ii] = new Poisson(mSceneMgr,ii);
+  }
+    
+  for (unsigned int ii = 0; ii < NB_FLORA; ii++)
+  {
+    flora[ii] = new Flora(mSceneMgr, ii);
+    flora[ii]->move(getGround(Vector3((rand()%2000)+500,0,(rand()%2000)+500)));
+  }
+
+}
+
+void SnakeApplication::destroyScene(void)
+{
+    OGRE_DELETE mTerrainGroup;
+    OGRE_DELETE mTerrainGlobals;
+}
+//-------------------------------------------------------------------------------------
+
+void SnakeApplication::createFrameListener(void)
+{
+    BaseApplication::createFrameListener();
+ 
+    mInfoLabel = mTrayMgr->createLabel(OgreBites::TL_TOP, "TInfo", "", 350);
+}
+//-------------------------------------------------------------------------------------
+
+bool SnakeApplication::frameRenderingQueued(const Ogre::FrameEvent& evt)
+{
+    if (!BaseApplication::frameRenderingQueued(evt)) return false;
+
+    if (mTerrainGroup->isDerivedDataUpdateInProgress())
+    {
+        mTrayMgr->moveWidgetToTray(mInfoLabel, OgreBites::TL_TOP, 0);
+        mInfoLabel->show();
+        if (mTerrainsImported)
+        {
+            mInfoLabel->setCaption("Building terrain, please wait...");
+        }
+        else
+        {
+            mInfoLabel->setCaption("Updating textures, patience...");
+        }
+    }
+    else
+    {
+        mTrayMgr->removeWidgetFromTray(mInfoLabel);
+        mInfoLabel->hide();
+        if (mTerrainsImported)
+        {
+            mTerrainGroup->saveAllTerrains(true);
+            mTerrainsImported = false;
+        }
+    }
+
+    if(!processUnbufferedInput(evt)) return false;
+
+    shark->move(evt.timeSinceLastFrame, Node::TS_LOCAL);
+
+    for (unsigned int ii =0; ii < NB_POISSONS; ii++)
+    {
+      poissons[ii]->anim(evt.timeSinceLastFrame);
+      
+      if (shark->getPosition().squaredDistance(poissons[ii]->getPosition())<100)
+      {
+	shark->add();
+	shark->eatAnim(evt.timeSinceLastFrame);
+	poissons[ii]->move();
+      }
+    }
+    
+    return true;
+}
+
+//-------------------------------------------------------------------------------------
+void getTerrainImage(bool flipX, bool flipY, Ogre::Image& img)
+{
+      img.load("terrain_perso.png", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+    if (flipX)
+        img.flipAroundY();
+    if (flipY)
+        img.flipAroundX();
+
+}
+//-------------------------------------------------------------------------------------
+void SnakeApplication::defineTerrain(long x, long y)
+{
+      Ogre::String filename = mTerrainGroup->generateFilename(x, y);
+    if (Ogre::ResourceGroupManager::getSingleton().resourceExists(mTerrainGroup->getResourceGroup(), filename))
+    {
+        mTerrainGroup->defineTerrain(x, y);
+    }
+    else
+    {
+        Ogre::Image img;
+        getTerrainImage(x % 2 != 0, y % 2 != 0, img);
+        mTerrainGroup->defineTerrain(x, y, &img);
+        mTerrainsImported = true;
+    }
+
+}
+//-------------------------------------------------------------------------------------
+void SnakeApplication::initBlendMaps(Ogre::Terrain* terrain)
+{
+    Ogre::TerrainLayerBlendMap* blendMap0 = terrain->getLayerBlendMap(1);
+    Ogre::TerrainLayerBlendMap* blendMap1 = terrain->getLayerBlendMap(2);
+    Ogre::Real minHeight0 = 70;
+    Ogre::Real fadeDist0 = 40;
+    Ogre::Real minHeight1 = 70;
+    Ogre::Real fadeDist1 = 40;
+    float* pBlend1 = blendMap1->getBlendPointer();
+    for (Ogre::uint16 y = 0; y < terrain->getLayerBlendMapSize(); ++y)
+    {
+        for (Ogre::uint16 x = 0; x < terrain->getLayerBlendMapSize(); ++x)
+        {
+            Ogre::Real tx, ty;
+ 
+            blendMap0->convertImageToTerrainSpace(x, y, &tx, &ty);
+            Ogre::Real height = terrain->getHeightAtTerrainPosition(tx, ty);
+            Ogre::Real val = (height - minHeight0) / fadeDist0;
+            val = Ogre::Math::Clamp(val, (Ogre::Real)0, (Ogre::Real)1);
+ 
+            val = (height - minHeight1) / fadeDist1;
+            val = Ogre::Math::Clamp(val, (Ogre::Real)0, (Ogre::Real)1);
+            *pBlend1++ = val;
+        }
+    }
+    blendMap0->dirty();
+    blendMap1->dirty();
+    blendMap0->update();
+    blendMap1->update();
+
+}
+//-------------------------------------------------------------------------------------
+void SnakeApplication::configureTerrainDefaults(Ogre::Light* light)
+{
+  // Configure global
+    mTerrainGlobals->setMaxPixelError(8);
+    // testing composite map
+    mTerrainGlobals->setCompositeMapDistance(3000);
+    
+    // Important to set these so that the terrain knows what to use for derived (non-realtime) data
+    mTerrainGlobals->setLightMapDirection(light->getDerivedDirection());
+    mTerrainGlobals->setCompositeMapAmbient(mSceneMgr->getAmbientLight());
+    mTerrainGlobals->setCompositeMapDiffuse(light->getDiffuseColour());
+    
+    // Configure default import settings for if we use imported image
+    Ogre::Terrain::ImportData& defaultimp = mTerrainGroup->getDefaultImportSettings();
+    defaultimp.terrainSize = 513;
+    defaultimp.worldSize = 4000.0f;
+    defaultimp.inputScale = 600;
+    defaultimp.minBatchSize = 33;
+    defaultimp.maxBatchSize = 65;
+    
+    // textures
+    defaultimp.layerList.resize(3);
+    defaultimp.layerList[0].worldSize = 100;
+    defaultimp.layerList[0].textureNames.push_back("sand_SRC.png");
+    defaultimp.layerList[0].textureNames.push_back("dirt_grayrocky_diffusespecular.dds");
+    defaultimp.layerList[0].textureNames.push_back("sand_Normal_Height.dds");
+//    defaultimp.layerList[0].textureNames.push_back("dirt_grayrocky_diffusespecular.dds");
+//    defaultimp.layerList[0].textureNames.push_back("dirt_grayrocky_normalheight.dds");
+    defaultimp.layerList[1].worldSize = 30;
+    defaultimp.layerList[1].textureNames.push_back("sand_SRC.png");
+    defaultimp.layerList[0].textureNames.push_back("dirt_grayrocky_diffusespecular.dds");
+    defaultimp.layerList[1].textureNames.push_back("sand_Normal_Height.dds");
+    defaultimp.layerList[2].worldSize = 200;
+    defaultimp.layerList[1].textureNames.push_back("sand_SRC.png");
+    defaultimp.layerList[0].textureNames.push_back("dirt_grayrocky_diffusespecular.dds");
+    defaultimp.layerList[1].textureNames.push_back("sand_Normal_Height.dds");
+//     defaultimp.layerList[2].textureNames.push_back("sand_Diffuse_Specular.dds");
+//     defaultimp.layerList[2].textureNames.push_back("sand_Normal_Height.dds");
+
+
+}
+//-------------------------------------------------------------------------------------
+
+bool SnakeApplication::processUnbufferedInput(const Ogre::FrameEvent& evt)
+{
+    return true;    
+}
+//-------------------------------------------------------------------------------------
+bool SnakeApplication::keyPressed( const OIS::KeyEvent &arg )
+{
+  switch (arg.key)
+    {
+    case OIS::KC_UP:
+    case OIS::KC_Z:
+      shark->up();
+// 	if (mPitch == 0 && mYaw == 0) then mPitch = - mRotate;
+// 	else next_arg = arg;
+	break;
+
+    case OIS::KC_DOWN:
+    case OIS::KC_S:
+      shark->down();
+// 	if (mPitch == 0 && mYaw == 0) then mPitch = + mRotate;
+// 	else next_arg = arg;
+	break;
+
+    case OIS::KC_LEFT:
+    case OIS::KC_Q:
+      shark->left();
+// 	if (mPitch == 0 && mYaw == 0) then mYaw = + mRotate;
+// 	else next_arg = arg;
+	break;
+	
+    case OIS::KC_RIGHT:
+    case OIS::KC_D:
+      shark->right();
+//       if (mPitch == 0 && mYaw == 0) then mYaw = - mRotate;
+//       else next_arg = arg;
+      break;
+	
+    default:
+	break;
+    }
+    
+    return BaseApplication::keyPressed(arg);
+}
+
+bool SnakeApplication::mousePressed( const OIS::MouseEvent &arg, OIS::MouseButtonID id )
+{
+    switch (id)
+    {
+      case OIS::MB_Left:
+	shark->redirection();
+	break;
+	
+    case OIS::MB_Right:
+    {
+      shark->getNode()->setDirection(Vector3(0,0,0));
+    }
+	break;
+	
+    default:
+	break;
+    }
+    return BaseApplication::mousePressed(arg, id);
+}
+
+bool SnakeApplication::keyReleased( const OIS::KeyEvent &arg )
+{
+    switch (arg.key)
+    {
+    case OIS::KC_UP:
+    case OIS::KC_Z:
+	  mPitch = 0;
+	break;
+
+    case OIS::KC_DOWN:
+    case OIS::KC_S:
+	mPitch = 0;
+	break;
+
+    case OIS::KC_LEFT:
+    case OIS::KC_Q:
+	mYaw = 0;
+	break;
+
+    case OIS::KC_RIGHT:
+    case OIS::KC_D:
+	mYaw = 0;
+	break;
+
+    case OIS::KC_PGDOWN:
+    case OIS::KC_E:
+	mDirection.y = 0;
+	break;
+
+    case OIS::KC_PGUP:
+    case OIS::KC_A:
+	mDirection.y = 0;
+	break;
+
+    default:
+	break;
+    }
+  return BaseApplication::keyReleased(arg);
+}
+
+Vector3 SnakeApplication::getGround(Vector3 position)
+{
+  float newHeight = mTerrainGroup->getHeightAtWorldPosition(position);
+  return Vector3(position.x, newHeight + 5.0f, position.z);
+}

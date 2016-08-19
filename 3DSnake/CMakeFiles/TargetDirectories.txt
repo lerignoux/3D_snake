@@ -1,0 +1,1 @@
+/home/laurent/perso/Ogre/ogre_src_v1-7-1/Samples/Common/src/Snake3D/CMakeFiles/3DSnake.dir
